@@ -1,0 +1,167 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Wordle environement</title>
+    </head>
+    <body>
+        <div>
+            <link rel="stylesheet" href="{{ url_for('static', filename= 'css/style.css') }}">
+        </div>
+        <button onclick="initBoard()" id="start-button">Start the game</button>
+        <button onclick="initBoard()" id="restart-button" hidden>Restart</button>
+        <div id = "game-board"></div>
+        
+    </body>
+
+    <script>
+        let currentRow = 0;
+        let currentBox = 0;
+
+        function submit_word_func(word) {
+            console.log("Submitting word to backend");
+
+            fetch("/api/check_input", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ word: word })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error("Network response was not OK");
+                }
+                return res.json();
+            })
+            .then(data => {
+                console.log(data);
+                if (!data.result_dict || data.result_dict.length !== 5) {
+                    throw new Error("Unexpected data format");
+                }
+
+                const board = document.getElementById("game-board");
+                const rows = board.getElementsByClassName("letter-row");
+                const row = rows[currentRow];
+                const boxes = row.getElementsByClassName("letter-box");
+
+                let correct_letters = 0;
+
+                for (let i = 0; i < 5; i++) {
+                    boxes[i].style.backgroundColor = data.result_dict[i][1];
+                    if (data.result_dict[i][1] === "green") {
+                        correct_letters++;
+                    }
+                    console.log(data.result_dict[i]);
+                }
+
+                if (correct_letters === 5) {
+                    currentRow = 6;
+                    alert("You won!!!");
+                    // Call something else here
+                } else {
+                    currentRow++;
+                    currentBox = 0
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("Not a valid word");
+            });
+        }
+    
+        function initBoard() {
+            let start = document.getElementById("start-button")
+            let restart = document.getElementById("restart-button")
+            let hiddenStart = start.getAttribute("hidden");
+            let hiddenRestart = restart.getAttribute("hidden")
+
+            if (hiddenStart == null) {
+                start.setAttribute("hidden", "hidden")
+                restart.removeAttribute("hidden")
+            }
+
+            currentBox = 0
+            currentRow = 0
+
+            let board = document.getElementById("game-board");
+            board.innerHTML = "";
+            for (let i = 0; i < 5; i++) {
+                let row = document.createElement("div")
+                row.className = "letter-row"
+
+                for (let j = 0; j < 5; j++) {
+                    let box = document.createElement("div")
+                    box.className = "letter-box"
+                    row.appendChild(box)
+                }
+                board.appendChild(row)
+            }
+
+            fetch("/api/choose_word", {
+                method: "POST" 
+            }).then(
+                document.addEventListener("keydown", handleKeyDown)
+            )
+            
+        }
+
+        function handleKeyDown(event) {
+            console.log("keydown")
+            var x = event.key
+
+            if(/^[a-zA-Z]$/.test(x)) {
+                insertLetter(x)
+            } else if (x === "Backspace" || x === "Delete") {
+                deleteLetter()
+            } else if (x === "Enter") {
+                enter()
+            }
+        }
+
+        function insertLetter(character) {
+            const board = document.getElementById("game-board");
+            const rows = board.getElementsByClassName("letter-row");
+
+            if (currentRow < 5 && currentBox < 5) {
+                const row = rows[currentRow];
+                const boxes = row.getElementsByClassName("letter-box");
+
+                boxes[currentBox].textContent = event.key.toUpperCase();
+                currentBox++;
+            }
+        }
+
+        function deleteLetter() {
+            if (currentBox > 0) {
+                const board = document.getElementById("game-board");
+                const rows = board.getElementsByClassName("letter-row");
+                const row = rows[currentRow];
+                const boxes = row.getElementsByClassName("letter-box");
+                
+                currentBox--;
+                boxes[currentBox].textContent = "";
+            }
+        }
+
+        function enter() {
+            const board = document.getElementById("game-board");
+            const rows = board.getElementsByClassName("letter-row");
+
+            if (currentRow < 6 && currentBox === 5) {
+                const row = rows[currentRow];
+                const boxes = row.getElementsByClassName("letter-box");
+                word = "";
+                for (let letter of boxes) {
+                    word += letter.textContent;
+                }
+                submit_word_func(word);
+                
+            } else {
+                console.log("not whole worded added")
+            }
+        }
+
+
+    </script>
+
+
+
+</html>
